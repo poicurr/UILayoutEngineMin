@@ -72,6 +72,7 @@ struct UiModel {
   std::string propPosition = "0, 0, 0";
   std::string propScale = "1, 1, 1";
   std::string propTag = "Node";
+  bool debugTextBaseline = false;
   std::vector<std::string> logs;
 };
 
@@ -430,11 +431,25 @@ Rgba8 panelColor(NodeKind kind) {
 
 void drawLabel(ui::DrawListBuilder &builder, ui::ClipStack &clipStack,
                const ui::FontAtlas &font, std::string_view label, float x,
-               float y, uint32_t rgbaPremul) {
+               float y, uint32_t rgbaPremul, bool drawBaselineDebug) {
+  const float snappedX = std::round(x);
+  const float snappedY = std::round(y);
+
+  if (drawBaselineDebug) {
+    ui::DrawCmdKey baselineKey{};
+    baselineKey.textureId = WHITE_TEXTURE_ID;
+    baselineKey.scissor = clipStack.current();
+
+    const float baselineY = font.baselineY(snappedY);
+    const float baselineW = std::max(1.0F, font.measureText(label));
+    builder.addRect(ui::RectF{snappedX, baselineY, baselineW, 1.0F},
+                    premulPack(Rgba8{255, 96, 96, 140}), baselineKey);
+  }
+
   ui::DrawCmdKey key{};
   key.textureId = FONT_TEXTURE_ID;
   key.scissor = clipStack.current();
-  font.appendText(builder, key, x, y, label, rgbaPremul);
+  font.appendText(builder, key, snappedX, snappedY, label, rgbaPremul);
 }
 
 struct TextInputResult {
@@ -442,11 +457,13 @@ struct TextInputResult {
   bool submitted = false;
 };
 
-TextInputResult
-drawTextInput(ui::DrawListBuilder &builder, ui::ClipStack &clipStack,
-              const ui::FontAtlas &font, const ui::UiInput &input,
-              ui::UiState &state, ui::UiId id, const ui::RectF &rect,
-              std::string &buffer, uint32_t viewWidth, uint32_t viewHeight) {
+TextInputResult drawTextInput(ui::DrawListBuilder &builder,
+                              ui::ClipStack &clipStack,
+                              const ui::FontAtlas &font,
+                              const ui::UiInput &input, ui::UiState &state,
+                              ui::UiId id, const ui::RectF &rect,
+                              std::string &buffer, uint32_t viewWidth,
+                              uint32_t viewHeight, bool drawBaselineDebug) {
   TextInputResult out{};
 
   const bool hovered = pointInRect(input.mousePosX, input.mousePosY, rect);
@@ -497,8 +514,8 @@ drawTextInput(ui::DrawListBuilder &builder, ui::ClipStack &clipStack,
   boxKey.scissor = clipStack.current();
   builder.addRect(rect, premulPack(boxColor), boxKey);
 
-  const float textX = rect.x + 6.0F;
-  const float textY = rect.y + 4.0F;
+  const float textX = std::round(rect.x + 6.0F);
+  const float textY = std::round(rect.y + 4.0F);
 
   const ui::UiScissorRectPx textScissor = ui::intersectScissor(
       clipStack.current(), ui::rectToScissorPx(rect, viewWidth, viewHeight));
@@ -506,12 +523,23 @@ drawTextInput(ui::DrawListBuilder &builder, ui::ClipStack &clipStack,
   ui::DrawCmdKey textKey{};
   textKey.textureId = FONT_TEXTURE_ID;
   textKey.scissor = textScissor;
+
+  if (drawBaselineDebug) {
+    ui::DrawCmdKey baselineKey{};
+    baselineKey.textureId = WHITE_TEXTURE_ID;
+    baselineKey.scissor = textScissor;
+    const float baselineY = font.baselineY(textY);
+    const float baselineW = std::max(1.0F, font.measureText(buffer));
+    builder.addRect(ui::RectF{textX, baselineY, baselineW, 1.0F},
+                    premulPack(Rgba8{255, 96, 96, 140}), baselineKey);
+  }
+
   font.appendText(builder, textKey, textX, textY, buffer,
                   premulPack(Theme::TEXT));
 
   if (state.focusId == id) {
-    const float caretX =
-        textX + font.measureText(std::string_view(buffer.data(), caret));
+    const float caretX = std::round(
+        textX + font.measureText(std::string_view(buffer.data(), caret)));
     ui::RectF caretRect{caretX, rect.y + 3.0F, 1.5F, rect.h - 6.0F};
     builder.addRect(caretRect, premulPack(Theme::TEXT), boxKey);
   }
@@ -600,18 +628,19 @@ ui::UiDrawListOwned buildUiDrawList(uint32_t width, uint32_t height,
   const ui::RectF centerRect = layout.rects[layoutBuild.centerId];
   const ui::RectF rightRect = layout.rects[layoutBuild.rightId];
   const ui::RectF bottomRect = layout.rects[layoutBuild.bottomId];
+  const bool drawBaselineDebug = model.debugTextBaseline;
 
   // Left panel: search + scrollable list.
   clipStack.pushRectIntersect(leftRect, width, height);
 
   drawLabel(builder, clipStack, font, "Tree", leftRect.x + 8.0F,
-            leftRect.y + 8.0F, premulPack(Theme::TEXT));
+            leftRect.y + 8.0F, premulPack(Theme::TEXT), drawBaselineDebug);
 
   const ui::RectF searchRect{leftRect.x + 8.0F, leftRect.y + 30.0F,
                              leftRect.w - 16.0F, 24.0F};
   const TextInputResult searchInput = drawTextInput(
       builder, clipStack, font, input, state, ui::hashUiId("text/search"),
-      searchRect, model.searchText, width, height);
+      searchRect, model.searchText, width, height, drawBaselineDebug);
   clickedAnyTextInput |= searchInput.clickedInside;
 
   const ui::RectF listRect{leftRect.x + 8.0F, leftRect.y + 60.0F,
@@ -721,7 +750,7 @@ ui::UiDrawListOwned buildUiDrawList(uint32_t width, uint32_t height,
     const float textX =
         rowRect.x + 6.0F + static_cast<float>(row.depth) * 14.0F;
     drawLabel(builder, clipStack, font, row.text, textX, rowRect.y + 3.0F,
-              premulPack(Theme::TEXT));
+              premulPack(Theme::TEXT), drawBaselineDebug);
   }
 
   clipStack.pop();
@@ -730,66 +759,96 @@ ui::UiDrawListOwned buildUiDrawList(uint32_t width, uint32_t height,
   // Center panel: title text.
   clipStack.pushRectIntersect(centerRect, width, height);
   drawLabel(builder, clipStack, font, "Viewport", centerRect.x + 12.0F,
-            centerRect.y + 10.0F, premulPack(Theme::TEXT));
+            centerRect.y + 10.0F, premulPack(Theme::TEXT), drawBaselineDebug);
   drawLabel(builder, clipStack, font, "LDR overlay UI", centerRect.x + 12.0F,
-            centerRect.y + 30.0F, premulPack(Theme::TEXT_DIM));
+            centerRect.y + 30.0F, premulPack(Theme::TEXT_DIM),
+            drawBaselineDebug);
   clipStack.pop();
 
   // Right panel: property grid.
   clipStack.pushRectIntersect(rightRect, width, height);
   drawLabel(builder, clipStack, font, "Properties", rightRect.x + 8.0F,
-            rightRect.y + 8.0F, premulPack(Theme::TEXT));
+            rightRect.y + 8.0F, premulPack(Theme::TEXT), drawBaselineDebug);
+
+  const ui::RectF debugToggleRect{rightRect.x + 8.0F, rightRect.y + 28.0F,
+                                  14.0F, 14.0F};
+  const bool debugToggleHover =
+      pointInRect(input.mousePosX, input.mousePosY, debugToggleRect);
+  if (debugToggleHover) {
+    state.hotId = ui::hashUiId("ui/debug_baseline_toggle");
+    if (input.mousePressed) {
+      model.debugTextBaseline = !model.debugTextBaseline;
+    }
+  }
+  ui::DrawCmdKey debugToggleKey{};
+  debugToggleKey.textureId = WHITE_TEXTURE_ID;
+  debugToggleKey.scissor = clipStack.current();
+  builder.addRect(debugToggleRect, premulPack(Theme::INPUT_BG), debugToggleKey);
+  if (model.debugTextBaseline) {
+    const ui::RectF inner{
+        debugToggleRect.x + 3.0F,
+        debugToggleRect.y + 3.0F,
+        debugToggleRect.w - 6.0F,
+        debugToggleRect.h - 6.0F,
+    };
+    builder.addRect(inner, premulPack(Theme::SELECT), debugToggleKey);
+  }
+  drawLabel(builder, clipStack, font, "Debug Baseline",
+            debugToggleRect.x + 20.0F, debugToggleRect.y - 1.0F,
+            premulPack(Theme::TEXT_DIM), false);
 
   char selectedText[64];
   std::snprintf(selectedText, sizeof(selectedText), "Selected: Item %02d",
                 model.selectedIndex);
   drawLabel(builder, clipStack, font, selectedText, rightRect.x + 8.0F,
-            rightRect.y + 34.0F, premulPack(Theme::TEXT_DIM));
+            rightRect.y + 50.0F, premulPack(Theme::TEXT_DIM),
+            drawBaselineDebug);
 
   const float labelColW = 84.0F;
-  const float rowY0 = rightRect.y + 58.0F;
+  const float rowY0 = rightRect.y + 74.0F;
   const float rowGap = 30.0F;
 
   drawLabel(builder, clipStack, font, "Tag", rightRect.x + 8.0F, rowY0,
-            premulPack(Theme::TEXT_DIM));
+            premulPack(Theme::TEXT_DIM), drawBaselineDebug);
   const ui::RectF tagRect{rightRect.x + 8.0F + labelColW, rowY0 - 4.0F,
                           rightRect.w - (24.0F + labelColW), 24.0F};
   const TextInputResult tagInput = drawTextInput(
       builder, clipStack, font, input, state, ui::hashUiId("text/prop/tag"),
-      tagRect, model.propTag, width, height);
+      tagRect, model.propTag, width, height, drawBaselineDebug);
   clickedAnyTextInput |= tagInput.clickedInside;
 
   drawLabel(builder, clipStack, font, "Position", rightRect.x + 8.0F,
-            rowY0 + rowGap, premulPack(Theme::TEXT_DIM));
+            rowY0 + rowGap, premulPack(Theme::TEXT_DIM), drawBaselineDebug);
   const ui::RectF posRect{rightRect.x + 8.0F + labelColW, rowY0 + rowGap - 4.0F,
                           rightRect.w - (24.0F + labelColW), 24.0F};
   const TextInputResult posInput = drawTextInput(
       builder, clipStack, font, input, state, ui::hashUiId("text/prop/pos"),
-      posRect, model.propPosition, width, height);
+      posRect, model.propPosition, width, height, drawBaselineDebug);
   clickedAnyTextInput |= posInput.clickedInside;
 
   drawLabel(builder, clipStack, font, "Scale", rightRect.x + 8.0F,
-            rowY0 + rowGap * 2.0F, premulPack(Theme::TEXT_DIM));
+            rowY0 + rowGap * 2.0F, premulPack(Theme::TEXT_DIM),
+            drawBaselineDebug);
   const ui::RectF scaleRect{rightRect.x + 8.0F + labelColW,
                             rowY0 + rowGap * 2.0F - 4.0F,
                             rightRect.w - (24.0F + labelColW), 24.0F};
   const TextInputResult scaleInput = drawTextInput(
       builder, clipStack, font, input, state, ui::hashUiId("text/prop/scale"),
-      scaleRect, model.propScale, width, height);
+      scaleRect, model.propScale, width, height, drawBaselineDebug);
   clickedAnyTextInput |= scaleInput.clickedInside;
   clipStack.pop();
 
   // Bottom panel: command input + scrollable log.
   clipStack.pushRectIntersect(bottomRect, width, height);
   drawLabel(builder, clipStack, font, "Log", bottomRect.x + 8.0F,
-            bottomRect.y + 8.0F, premulPack(Theme::TEXT));
+            bottomRect.y + 8.0F, premulPack(Theme::TEXT), drawBaselineDebug);
 
   const ui::RectF cmdRect{bottomRect.x + 8.0F, bottomRect.y + 30.0F,
                           bottomRect.w - 16.0F, 24.0F};
 
   const TextInputResult cmdInput = drawTextInput(
       builder, clipStack, font, input, state, ui::hashUiId("text/command"),
-      cmdRect, model.commandText, width, height);
+      cmdRect, model.commandText, width, height, drawBaselineDebug);
   clickedAnyTextInput |= cmdInput.clickedInside;
 
   if (cmdInput.submitted && !model.commandText.empty()) {
@@ -812,7 +871,7 @@ ui::UiDrawListOwned buildUiDrawList(uint32_t width, uint32_t height,
       continue;
     }
     drawLabel(builder, clipStack, font, model.logs[i], logRect.x + 4.0F,
-              y + 1.0F, premulPack(Theme::TEXT_DIM));
+              y + 1.0F, premulPack(Theme::TEXT_DIM), drawBaselineDebug);
   }
   clipStack.pop();
   clipStack.pop();
@@ -906,8 +965,8 @@ int main() {
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
   glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
 
-  GLFWwindow *window = glfwCreateWindow(
-      WINDOW_W, WINDOW_H, "UILayoutEngineMin", nullptr, nullptr);
+  GLFWwindow *window = glfwCreateWindow(WINDOW_W, WINDOW_H, "UILayoutEngineMin",
+                                        nullptr, nullptr);
   if (window == nullptr) {
     std::fprintf(stderr, "glfwCreateWindow failed\n");
     glfwTerminate();

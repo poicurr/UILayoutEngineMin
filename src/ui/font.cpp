@@ -1,6 +1,7 @@
 #include "ui/font.hpp"
 
 #include <array>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 
@@ -59,6 +60,18 @@ bool FontAtlas::buildFromFile(const std::string &ttfPath, float pixelHeight,
     return false;
   }
 
+  stbtt_fontinfo fontInfo{};
+  if (stbtt_InitFont(&fontInfo, ttf.data(),
+                     stbtt_GetFontOffsetForIndex(ttf.data(), 0)) == 0) {
+    return false;
+  }
+
+  const float scale = stbtt_ScaleForPixelHeight(&fontInfo, pixelHeight);
+  int ascent = 0;
+  int descent = 0;
+  int lineGap = 0;
+  stbtt_GetFontVMetrics(&fontInfo, &ascent, &descent, &lineGap);
+
   std::vector<uint8_t> alpha(static_cast<size_t>(atlasWidth * atlasHeight), 0);
   stbtt_bakedchar baked[96]{};
 
@@ -72,7 +85,8 @@ bool FontAtlas::buildFromFile(const std::string &ttfPath, float pixelHeight,
 
   m_atlasWidth = atlasWidth;
   m_atlasHeight = atlasHeight;
-  m_lineHeight = pixelHeight;
+  m_ascentPx = static_cast<float>(ascent) * scale;
+  m_lineHeight = static_cast<float>(ascent - descent + lineGap) * scale;
   m_atlasRgba.resize(static_cast<size_t>(atlasWidth * atlasHeight * 4));
 
   for (int i = 0; i < atlasWidth * atlasHeight; ++i) {
@@ -87,16 +101,24 @@ bool FontAtlas::buildFromFile(const std::string &ttfPath, float pixelHeight,
   for (int i = 0; i < 96; ++i) {
     const stbtt_bakedchar &g = baked[i];
     GlyphInfo gi{};
+    gi.widthPx = static_cast<float>(g.x1 - g.x0);
+    gi.heightPx = static_cast<float>(g.y1 - g.y0);
+    gi.bearingXPx = g.xoff;
+    gi.bearingYPx = -g.yoff;
+    gi.advanceX = g.xadvance;
     gi.x0 = static_cast<float>(g.x0) / static_cast<float>(atlasWidth);
     gi.y0 = static_cast<float>(g.y0) / static_cast<float>(atlasHeight);
     gi.x1 = static_cast<float>(g.x1) / static_cast<float>(atlasWidth);
     gi.y1 = static_cast<float>(g.y1) / static_cast<float>(atlasHeight);
-    gi.xAdvance = g.xadvance;
     m_glyphs[i] = gi;
   }
 
   m_ready = true;
   return true;
+}
+
+float FontAtlas::baselineY(float lineTopY) const {
+  return std::round(lineTopY + m_ascentPx);
 }
 
 float FontAtlas::measureText(std::string_view text) const {
@@ -111,9 +133,9 @@ float FontAtlas::measureText(std::string_view text) const {
       continue;
     }
     const GlyphInfo &g = m_glyphs[ch - 32];
-    x += g.xAdvance;
+    x += g.advanceX;
   }
-  return x;
+  return std::round(x);
 }
 
 void FontAtlas::appendText(DrawListBuilder &builder, const DrawCmdKey &key,
@@ -123,22 +145,23 @@ void FontAtlas::appendText(DrawListBuilder &builder, const DrawCmdKey &key,
     return;
   }
 
-  float cursorX = x;
+  const float lineTopY = std::round(y);
+  const float baselineYPx = baselineY(lineTopY);
+  float penX = std::round(x);
+
   for (const char ch : text) {
     if (ch < 32 || ch > 126) {
-      cursorX += m_lineHeight * 0.5F;
+      penX = std::round(penX + m_lineHeight * 0.5F);
       continue;
     }
 
     const GlyphInfo &g = m_glyphs[ch - 32];
-    const float glyphW = (g.x1 - g.x0) * static_cast<float>(m_atlasWidth);
-    const float glyphH = (g.y1 - g.y0) * static_cast<float>(m_atlasHeight);
 
     RectF rect{};
-    rect.x = cursorX;
-    rect.y = y;
-    rect.w = glyphW;
-    rect.h = glyphH;
+    rect.x = std::round(penX + g.bearingXPx);
+    rect.y = std::round(baselineYPx - g.bearingYPx);
+    rect.w = g.widthPx;
+    rect.h = g.heightPx;
 
     UvRect uv{};
     uv.u0 = g.x0;
@@ -147,7 +170,7 @@ void FontAtlas::appendText(DrawListBuilder &builder, const DrawCmdKey &key,
     uv.v1 = g.y1;
 
     builder.addQuad(rect, uv, rgbaPremul, key);
-    cursorX += g.xAdvance;
+    penX = std::round(penX + g.advanceX);
   }
 }
 

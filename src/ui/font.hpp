@@ -16,6 +16,8 @@ public:
 
   [[nodiscard]] bool isReady() const { return m_ready; }
   [[nodiscard]] float lineHeight() const { return m_lineHeight; }
+  [[nodiscard]] float ascentPx() const { return m_ascentPx; }
+  [[nodiscard]] float baselineY(float lineTopY) const;
   [[nodiscard]] float measureText(std::string_view text) const;
 
   [[nodiscard]] const std::vector<uint8_t> &atlasRgba() const {
@@ -32,17 +34,22 @@ private:
                      int atlasWidth, int atlasHeight);
 
   bool m_ready = false;
+  float m_ascentPx = 0.0F;
   float m_lineHeight = 0.0F;
   int m_atlasWidth = 0;
   int m_atlasHeight = 0;
   std::vector<uint8_t> m_atlasRgba;
 
   struct GlyphInfo {
+    float widthPx = 0.0F;
+    float heightPx = 0.0F;
+    float bearingXPx = 0.0F;
+    float bearingYPx = 0.0F;
+    float advanceX = 0.0F;
     float x0 = 0.0F;
     float y0 = 0.0F;
     float x1 = 0.0F;
     float y1 = 0.0F;
-    float xAdvance = 0.0F;
   };
 
   GlyphInfo m_glyphs[96]{};
