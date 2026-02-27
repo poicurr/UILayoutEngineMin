@@ -28,6 +28,7 @@ struct Style {
   SizeSpec height{SizeSpec::Kind::Fill, 1.0F};
 
   EdgesF padding{};
+  float gap = 0.0F;
   bool clip = false;
 };
 
@@ -93,6 +94,10 @@ inline LayoutTree computeLayout(const UiTree &tree, RectF rootRect) {
     // 1) measure fixed space and total fill weight along main axis.
     float fixedMain = 0.0F;
     float totalWeight = 0.0F;
+    const float gap = std::max(0.0F, node.style.gap);
+    const size_t childCount = node.children.size();
+    const float totalGap =
+        (childCount > 1) ? (gap * static_cast<float>(childCount - 1)) : 0.0F;
 
     for (uint32_t childId : node.children) {
       const Style &cs = tree.nodes[childId].style;
@@ -105,7 +110,7 @@ inline LayoutTree computeLayout(const UiTree &tree, RectF rootRect) {
     }
 
     const float mainAvail = (axis == Axis::Row) ? content.w : content.h;
-    const float remaining = std::max(0.0F, mainAvail - fixedMain);
+    const float remaining = std::max(0.0F, mainAvail - fixedMain - totalGap);
 
     float cursor = (axis == Axis::Row) ? content.x : content.y;
 
@@ -138,10 +143,10 @@ inline LayoutTree computeLayout(const UiTree &tree, RectF rootRect) {
       RectF childRect{};
       if (axis == Axis::Row) {
         childRect = RectF{cursor, content.y, childMain, childCross};
-        cursor += childMain;
+        cursor += childMain + gap;
       } else {
         childRect = RectF{content.x, cursor, childCross, childMain};
-        cursor += childMain;
+        cursor += childMain + gap;
       }
 
       stack.push_back({childId, childRect});

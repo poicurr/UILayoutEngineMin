@@ -1,4 +1,4 @@
-# ui_layout_glfw_min
+# UILayoutEngineMin
 
 Minimal "CPU-only layout engine → UiDrawList(IR) → draw" sanity project.
 
@@ -39,7 +39,7 @@ cmake --build build -j --config Release
 
 Run:
 ```bash
-./build/ui_layout_glfw_min
+./build/UILayoutEngineMin
 ```
 
 ## What you should see

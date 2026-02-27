@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-project(ui_layout_glfw_min LANGUAGES CXX)
+project(UILayoutEngineMin LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,17 +11,23 @@ find_package(OpenGL REQUIRED)
 # Prefer CONFIG mode (vcpkg / package managers). Fallback to module if needed.
 find_package(glfw3 CONFIG REQUIRED)
 
-add_executable(ui_layout_glfw_min
+add_executable(UILayoutEngineMin
   src/main.cpp
-  src/ui/ui_layout.hpp
-  src/ui/ui_drawlist.hpp
+  src/ui/font.cpp
+  src/ui/layout.hpp
+  src/ui/drawlist.hpp
+  src/ui/input.hpp
+  src/ui/clip_stack.hpp
+  src/ui/draw_builder.hpp
+  src/ui/font.hpp
+  src/third_party/stb_truetype.h
 )
 
-target_include_directories(ui_layout_glfw_min PRIVATE src)
-target_link_libraries(ui_layout_glfw_min PRIVATE OpenGL::GL glfw)
+target_include_directories(UILayoutEngineMin PRIVATE src)
+target_link_libraries(UILayoutEngineMin PRIVATE OpenGL::GL glfw)
 
 if (MSVC)
-  target_compile_options(ui_layout_glfw_min PRIVATE /W4)
+  target_compile_options(UILayoutEngineMin PRIVATE /W4)
 else()
-  target_compile_options(ui_layout_glfw_min PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(UILayoutEngineMin PRIVATE -Wall -Wextra -Wpedantic)
 endif()
