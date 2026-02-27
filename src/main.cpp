@@ -378,11 +378,9 @@ void updateSplitterInteraction(const ui::LayoutTree &layout,
 
   const float innerW = std::max(1.0F, viewWidth - OUTER_PADDING_PX * 2.0F);
   const float innerH = std::max(1.0F, viewHeight - OUTER_PADDING_PX * 2.0F);
-  // Resize uses reversed cursor axes to match engine-side cursor move
-  // semantics.
-  const float xLocal = (viewWidth - OUTER_PADDING_PX) - input.mousePosX;
-  const float yLocal = (viewHeight - OUTER_PADDING_PX) - input.mousePosY;
 
+  const float xLocal = input.mousePosX - OUTER_PADDING_PX;
+  const float yLocal = input.mousePosY - OUTER_PADDING_PX;
   const ui::UiId splitLeftId = splitterIdFromKind(NodeKind::SplitterVLeft);
   const ui::UiId splitRightId = splitterIdFromKind(NodeKind::SplitterVRight);
   const ui::UiId splitHId = splitterIdFromKind(NodeKind::SplitterH);
@@ -390,19 +388,27 @@ void updateSplitterInteraction(const ui::LayoutTree &layout,
   if (state.activeId == splitLeftId) {
     const float maxLeft =
         innerW - MIN_CENTER_PX - MIN_RIGHT_PX - 2.0F * SPLITTER_THICKNESS_PX;
+
     const float left =
         std::clamp(xLocal, MIN_LEFT_PX, std::max(MIN_LEFT_PX, maxLeft));
     model.leftRatio = left / innerW;
+
   } else if (state.activeId == splitRightId) {
-    const float right =
-        std::clamp(innerW - xLocal, MIN_RIGHT_PX,
-                   std::max(MIN_RIGHT_PX, innerW - MIN_CENTER_PX - MIN_LEFT_PX -
-                                              2.0F * SPLITTER_THICKNESS_PX));
+    const float rightFromMouse = innerW - xLocal;
+
+    const float maxRight =
+        innerW - MIN_CENTER_PX - MIN_LEFT_PX - 2.0F * SPLITTER_THICKNESS_PX;
+
+    const float right = std::clamp(rightFromMouse, MIN_RIGHT_PX,
+                                   std::max(MIN_RIGHT_PX, maxRight));
     model.rightRatio = right / innerW;
+
   } else if (state.activeId == splitHId) {
-    const float bottom = std::clamp(
-        innerH - yLocal, MIN_BOTTOM_PX,
-        std::max(MIN_BOTTOM_PX, innerH - MIN_TOP_PX - SPLITTER_THICKNESS_PX));
+    const float bottomFromMouse = innerH - yLocal;
+
+    const float maxBottom = innerH - MIN_TOP_PX - SPLITTER_THICKNESS_PX;
+    const float bottom = std::clamp(bottomFromMouse, MIN_BOTTOM_PX,
+                                    std::max(MIN_BOTTOM_PX, maxBottom));
     model.bottomRatio = bottom / innerH;
   }
 }

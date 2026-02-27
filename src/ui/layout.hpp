@@ -115,10 +115,19 @@ inline LayoutTree computeLayout(const UiTree &tree, RectF rootRect) {
     float cursor = (axis == Axis::Row) ? content.x : content.y;
 
     // 2) arrange children.
-    // Push children in reverse so that traversal order remains stable (stack
-    // LIFO).
-    for (auto it = node.children.rbegin(); it != node.children.rend(); ++it) {
-      const uint32_t childId = *it;
+    // IMPORTANT:
+    // - Geometry placement must follow forward order (node.children order).
+    // - Stack push can be reversed to keep traversal stable (LIFO).
+
+    struct ChildPlacement {
+      uint32_t nodeId = 0;
+      RectF rect{};
+    };
+
+    std::vector<ChildPlacement> placements;
+    placements.reserve(node.children.size());
+
+    for (uint32_t childId : node.children) {
       const Style &cs = tree.nodes[childId].style;
 
       const SizeSpec main = (axis == Axis::Row) ? cs.width : cs.height;
@@ -149,7 +158,13 @@ inline LayoutTree computeLayout(const UiTree &tree, RectF rootRect) {
         cursor += childMain + gap;
       }
 
-      stack.push_back({childId, childRect});
+      placements.push_back(ChildPlacement{childId, childRect});
+    }
+
+    // Push in reverse for stable traversal (stack LIFO) without reversing
+    // placement.
+    for (auto it = placements.rbegin(); it != placements.rend(); ++it) {
+      stack.push_back({it->nodeId, it->rect});
     }
   }
 
