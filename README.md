@@ -39,8 +39,11 @@ cmake --build build -j --config Release
 
 Run:
 ```bash
-./build/UILayoutEngineMin
+./build/Release/UILayoutEngineMin
 ```
+
+## Screenshot
+![UILayoutEngineMin screenshot](https://raw.githubusercontent.com/poicurr/resources/main/UILayoutEngineMin/screenshot.png)
 
 ## What you should see
 

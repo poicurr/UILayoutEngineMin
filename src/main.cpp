@@ -771,7 +771,7 @@ ui::UiDrawListOwned buildUiDrawList(uint32_t width, uint32_t height,
             rightRect.y + 8.0F, premulPack(Theme::TEXT), drawBaselineDebug);
 
   const ui::RectF debugToggleRect{rightRect.x + 8.0F, rightRect.y + 28.0F,
-                                  14.0F, 14.0F};
+                                  16.0F, 16.0F};
   const bool debugToggleHover =
       pointInRect(input.mousePosX, input.mousePosY, debugToggleRect);
   if (debugToggleHover) {
@@ -783,15 +783,26 @@ ui::UiDrawListOwned buildUiDrawList(uint32_t width, uint32_t height,
   ui::DrawCmdKey debugToggleKey{};
   debugToggleKey.textureId = WHITE_TEXTURE_ID;
   debugToggleKey.scissor = clipStack.current();
-  builder.addRect(debugToggleRect, premulPack(Theme::INPUT_BG), debugToggleKey);
+  builder.addRect(debugToggleRect, premulPack(Rgba8{180, 188, 198, 255}),
+                  debugToggleKey);
+  const ui::RectF toggleInner{
+      debugToggleRect.x + 1.0F,
+      debugToggleRect.y + 1.0F,
+      debugToggleRect.w - 2.0F,
+      debugToggleRect.h - 2.0F,
+  };
+  const Rgba8 toggleBg =
+      debugToggleHover ? Rgba8{58, 66, 78, 255} : Rgba8{28, 31, 38, 255};
+  builder.addRect(toggleInner, premulPack(toggleBg), debugToggleKey);
   if (model.debugTextBaseline) {
     const ui::RectF inner{
-        debugToggleRect.x + 3.0F,
-        debugToggleRect.y + 3.0F,
-        debugToggleRect.w - 6.0F,
-        debugToggleRect.h - 6.0F,
+        debugToggleRect.x + 4.0F,
+        debugToggleRect.y + 4.0F,
+        debugToggleRect.w - 8.0F,
+        debugToggleRect.h - 8.0F,
     };
-    builder.addRect(inner, premulPack(Theme::SELECT), debugToggleKey);
+    builder.addRect(inner, premulPack(Rgba8{120, 162, 235, 255}),
+                    debugToggleKey);
   }
   drawLabel(builder, clipStack, font, "Debug Baseline",
             debugToggleRect.x + 20.0F, debugToggleRect.y - 1.0F,
