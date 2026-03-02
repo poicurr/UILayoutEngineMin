@@ -1,7 +1,7 @@
 #pragma once
 
-#include "ui/drawlist.hpp"
-#include "ui/layout.hpp"
+#include "gltfviewer/render/api/UiDrawList.hpp"
+#include "gltfviewer/ui/layout.hpp"
 
 namespace ui {
 

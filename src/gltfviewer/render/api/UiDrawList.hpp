@@ -1,6 +1,14 @@
 #pragma once
+// ============================================================
+// UI RENDERER CONTRACT (FROZEN)
+// ------------------------------------------------------------
+// This header defines the contract between:
+//   - UI producer (Engine/UI code)
+//   - UI consumer (Renderer/Backend)
+// Any structural change here requires updating all backends.
+// Keep this file small, stable, and dependency-light.
+// ============================================================
 
-#include <algorithm>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -30,23 +38,20 @@ struct UiScissorRectPx {
 };
 
 struct UiVertex {
-  float x = 0.0F; // px
-  float y = 0.0F; // px (top-left origin in this sample)
-  float u = 0.0F;
-  float v = 0.0F;
-  uint32_t rgbaPremul = 0; // premultiplied RGBA8 (R in lowest byte)
+  float x = 0.0f;
+  float y = 0.0f;
+  float u = 0.0f;
+  float v = 0.0f;
+  uint32_t rgbaPremul = 0;
 };
 
-// Indexed-only command.
 struct UiDrawCmd {
+  int32_t baseVertex = 0;
   uint32_t firstIndex = 0;
   uint32_t indexCount = 0;
-  int32_t baseVertex = 0;
-
   UiTextureId textureId = INVALID_UI_TEXTURE_ID;
   UiTextureColorSpace textureColorSpace = UiTextureColorSpace::Srgb;
   UiSamplerId samplerId = UiSamplerId::LinearClamp;
-
   UiScissorRectPx scissor{};
 };
 
@@ -58,16 +63,32 @@ struct UiDrawListView {
   std::span<const UiDrawCmd> commands{};
 
   [[nodiscard]] bool empty() const {
-    return commands.empty() || vertices.empty() || indices.empty();
+    return vertices.empty() || indices.empty() || commands.empty();
   }
 };
 
 struct UiDrawListOwned {
   uint32_t targetWidthPx = 0;
   uint32_t targetHeightPx = 0;
-  std::vector<UiVertex> vertices;
-  std::vector<uint32_t> indices;
-  std::vector<UiDrawCmd> commands;
+  std::vector<UiVertex> vertices{};
+  std::vector<uint32_t> indices{};
+  std::vector<UiDrawCmd> commands{};
+
+  void clear() {
+    targetWidthPx = 0;
+    targetHeightPx = 0;
+    vertices.clear();
+    indices.clear();
+    commands.clear();
+  }
+
+  void assign(const UiDrawListView &src) {
+    targetWidthPx = src.targetWidthPx;
+    targetHeightPx = src.targetHeightPx;
+    vertices.assign(src.vertices.begin(), src.vertices.end());
+    indices.assign(src.indices.begin(), src.indices.end());
+    commands.assign(src.commands.begin(), src.commands.end());
+  }
 
   [[nodiscard]] UiDrawListView view() const {
     return UiDrawListView{
@@ -77,10 +98,6 @@ struct UiDrawListOwned {
         .indices = indices,
         .commands = commands,
     };
-  }
-
-  [[nodiscard]] bool empty() const {
-    return commands.empty() || vertices.empty() || indices.empty();
   }
 };
 

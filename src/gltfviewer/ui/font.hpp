@@ -5,7 +5,7 @@
 #include <string_view>
 #include <vector>
 
-#include "ui/draw_builder.hpp"
+#include "gltfviewer/ui/draw_builder.hpp"
 
 namespace ui {
 

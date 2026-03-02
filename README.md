@@ -58,3 +58,9 @@ Keys:
 
 - The drawlist is indexed-only and uses a 1x1 white texture conceptually, but the sample multiplies color directly (texture is a no-op in this prototype).
 - The renderer contract in your engine may require `baseVertex/firstIndex/indexCount + scissor`. This sample follows that shape.
+
+## Contract vs Implementation
+
+- **Renderer contract (frozen):** `src/gltfviewer/render/api/UiDrawList.hpp`
+- UI implementation (free to change): `src/gltfviewer/ui/*`
+- `src/ui/*` headers are **compat forwarding headers** for older includes.

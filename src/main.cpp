@@ -8,12 +8,12 @@
 
 #include <GLFW/glfw3.h>
 
-#include "ui/clip_stack.hpp"
-#include "ui/draw_builder.hpp"
-#include "ui/drawlist.hpp"
-#include "ui/font.hpp"
-#include "ui/input.hpp"
-#include "ui/layout.hpp"
+#include "gltfviewer/render/api/UiDrawList.hpp"
+#include "gltfviewer/ui/clip_stack.hpp"
+#include "gltfviewer/ui/draw_builder.hpp"
+#include "gltfviewer/ui/font.hpp"
+#include "gltfviewer/ui/input.hpp"
+#include "gltfviewer/ui/layout.hpp"
 
 namespace {
 

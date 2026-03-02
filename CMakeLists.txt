@@ -13,7 +13,7 @@ find_package(glfw3 CONFIG REQUIRED)
 
 add_executable(UILayoutEngineMin
   src/main.cpp
-  src/ui/font.cpp
+  src/gltfviewer/ui/font.cpp
   src/ui/layout.hpp
   src/ui/drawlist.hpp
   src/ui/input.hpp

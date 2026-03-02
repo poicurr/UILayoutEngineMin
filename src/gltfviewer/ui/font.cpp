@@ -1,4 +1,4 @@
-#include "ui/font.hpp"
+#include "gltfviewer/ui/font.hpp"
 
 #include <array>
 #include <cmath>
